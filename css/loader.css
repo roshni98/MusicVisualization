@@ -1,0 +1,18 @@
+html,
+body {
+    height: 100%;
+    margin: 0
+}
+
+.start-button {
+    padding: 10px 40px;
+    text-align: center;
+    letter-spacing: 2px;
+    background-color: white;
+    font-size: 14px;
+    text-transform: uppercase;
+    font-family: csBold;
+    margin-top: 45vh;
+    margin-left: 45vw;
+    border: none;
+}
