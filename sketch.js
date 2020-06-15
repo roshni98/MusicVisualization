@@ -2,13 +2,18 @@
 var scene, camera, renderer, clock, geometry;
 var context;
 var saved;
+var analyser;
 
 
+var shape;
 var width = window.innerWidth,
   height = window.innerHeight;
+var point = new THREE.Vector2(0.8, 0.5);
 
 var startButton = document.getElementById( 'start-animate' );
 startButton.addEventListener( 'click', startClicked );
+
+
 
 function setup() {
   canvas = createCanvas(windowWidth, windowHeight, WEBGL);
@@ -17,7 +22,20 @@ function setup() {
 function startClicked() {
   document.getElementById("button-c").style.visibility = "hidden";
   init();
-  loadSound();
+  try {
+      context = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  catch (e) {
+      console.log("Your browser doesn't support Web Audio API");
+  }
+
+  if (saved) {
+    console.log('playSound')
+      playSound(saved);
+  } else {
+    console.log('loadSound')
+      loadSound();
+  }
 }
 
 // init()
@@ -31,20 +49,6 @@ function startClicked() {
 // }
 //-------------above code works but shows music player -------
 
-
-
-try {
-    context = new (window.AudioContext || window.webkitAudioContext)();
-}
-catch (e) {
-    console.log("Your browser doesn't support Web Audio API");
-}
-
-if (saved) {
-    playSound(saved);
-} else {
-    loadSound();
-}
 
 //loading sound into the created audio context
 function loadSound() {
@@ -63,7 +67,7 @@ function loadSound() {
             // play sound
             playSound(buffer);
         });
-    };
+    }
     request.send();
 }
 
@@ -79,9 +83,18 @@ function playSound(buffer) {
     source.start(0);
 }
 
-//audio playing code ends
+//----------------audio playing code ends------------------------
 
 
+function audioProcessing() {
+  var listener = new THREE.AudioListener();
+  var audio = new THREE.Audio( listener );
+  var file = 'music.mp3';
+
+  this.analyser = new THREE.AudioAnalyser( audio, fftSize );
+
+
+}
 
 function init() {
 // print("test")
@@ -89,10 +102,6 @@ function init() {
   this.scene = new THREE.Scene();
   this.camera = new THREE.PerspectiveCamera( 30, window.innerWidth / window.innerHeight, 0.1, 10000 );
 // render
-  this.renderer = new THREE.WebGLRenderer();
-  renderer.setSize( window.innerWidth, window.innerHeight );
-  document.body.appendChild( renderer.domElement );
-
 //light
   var hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x0C056D, 0.6);
    scene.add(hemisphereLight);
@@ -104,41 +113,76 @@ function init() {
     var light2 = light.clone();
     light2.position.set(-200, 300, 400);
     scene.add(light2);
-//IcosahedronBufferGeometry shape created
-  this.geometry= new THREE.IcosahedronBufferGeometry();
 
+//IcosahedronBufferGeometry shape created
+  this.geometry=  new THREE.Geometry().fromBufferGeometry(new THREE.IcosahedronBufferGeometry(200,5));
+  for (var i = 0; i < geometry.vertices.length; i++) {
+    var vector = geometry.vertices[i];
+    vector._o = vector.clone();
+  }
 //material
    var material = new THREE.MeshPhongMaterial({
      emissive: 0xF6C7F1,
      emissiveIntensity: 0.4,
      shininess: 0
    });
-  var shape = new THREE.Mesh(geometry, material);
+  this.shape = new THREE.Mesh(geometry, material);
   scene.add(shape);
 
-  camera.position.z = 10;
+  camera.position.z = 1000;
+
+  this.renderer = new THREE.WebGLRenderer();
+  renderer.setSize( window.innerWidth, window.innerHeight );
+
+
+  document.body.appendChild( renderer.domElement );
+  //perform animation
+  requestAnimationFrame(render);
 
 //animate
-  var animate = function () {
-    requestAnimationFrame( animate );
+  // var animate = function () {
+  //   requestAnimationFrame( animate );
+  //
+  //   shape.rotation.x += 0.01;
+  //   shape.rotation.y += 0.01;
+  //
+  //   renderer.render( scene, camera );
+  // };
 
-    shape.rotation.x += 0.01;
-    shape.rotation.y += 0.01;
+  // render();
 
-    renderer.render( scene, camera );
-  };
-
-  animate();
 }
 
-function animate(time){
-  renderer.render( scene, camera );
+
+
+function render(time){
+  requestAnimationFrame( render );
   updateVertices(time);
+  renderer.render(scene, camera);
 }
-
 //update Vertices
+// function updateVertices(time) {
+//   var geometry2 = new THREE.Geometry().fromBufferGeometry( geometry );
+//   console.log(geometry2.vertices.length)
+//   // for (var i = 0; i < geometry.vertices.length; i++) {
+//   //   var vector = geometry.vertices[i];
+//   // }
+// }
+
 function updateVertices(time) {
   for (var i = 0; i < geometry.vertices.length; i++) {
     var vector = geometry.vertices[i];
+    // console.log(vector)
+    vector.copy(vector._o);
+    var perlin = noise.simplex3(
+      (vector.x * 0.006) + (time * 0.0002),
+      (vector.y * 0.006) + (time * 0.0003),
+      (vector.z * 0.006)
+    );
+    var ratio = ((perlin * 0.4 * (point.y + 0.1)) + 0.8);
+    vector.multiplyScalar(ratio);
   }
+  geometry.verticesNeedUpdate = true;
+  shape.rotation.x += 0.01;
+  shape.rotation.y += 0.01;
 }
